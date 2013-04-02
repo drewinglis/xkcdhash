@@ -27,7 +27,7 @@ u08b_t desired[] = {0x5b, 0x4d, 0xa9, 0x5f, 0x5f, 0xa0, 0x82, 0x80, 0xfc, 0x98, 
 int default_best = 1000;
 char *interstring = "tai";
 int NUM_THREADS = 16;
-int tid = 0;
+unsigned long tid = 0;
 
 typedef union {
     char str[25];
@@ -154,7 +154,7 @@ void *thrmain(void *arg){
 }
 */
 
-void *thrmain(void *arg){
+void *thrmain(void *tid){
     block_t block;
     block.foo.a = 0LU;
     block.foo.seed[0] = ' ';
@@ -168,7 +168,7 @@ void *thrmain(void *arg){
     block.foo.zero = '\0';
 
     printf("Starting with max=%d, seed=%.8s\n", default_best, interstring);
-    snprintf(block.str+5, 4, "%03d", tid);
+    snprintf(block.str+5, 4, "%03d", (unsigned long)tid);
     snprintf(block.foo.seed, 9, "%s", interstring);
     if (strlen(interstring) < 8) {
         block.foo.seed[strlen(interstring)] = ' ';
@@ -246,9 +246,10 @@ int main(int argc, char **argv) {
 
     for(int i=0;i<NUM_THREADS-1;i++){
         pthread_t foo;
-        pthread_create(&foo,NULL,thrmain,(void *)((ULONG_MAX/NUM_THREADS)*i));
+        pthread_create(&foo,NULL,thrmain,(void *)(tid));
+        tid += 1;
     }
-    thrmain((void *)((ULONG_MAX/NUM_THREADS)*(NUM_THREADS-1)));
+    thrmain((void *)(tid));
     return 0;
 }
 
