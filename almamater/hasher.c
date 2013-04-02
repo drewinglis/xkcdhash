@@ -24,11 +24,76 @@ u08b_t desired[] = {0x5b, 0x4d, 0xa9, 0x5f, 0x5f, 0xa0, 0x82, 0x80, 0xfc, 0x98, 
                     0x5e, 0x67, 0x66, 0x40, 0xc7, 0x9c, 0xc7, 0x01, 0x97, 0xe1, 0xc5, 0xe7,
                     0xf9, 0x02, 0xfb, 0x53, 0xca, 0x18, 0x58, 0xb6};
 
-int default_best =1000;
-char *interstring;
-#ifndef NUM_THREADS
-#define NUM_THREADS 16
-#endif
+int default_best = 1000;
+char *interstring = "tai";
+int NUM_THREADS = 16;
+int tid = 0;
+
+typedef union {
+    char str[25];
+    struct {
+        unsigned long a;
+        char seed[8];
+        unsigned long b;
+        char zero;
+    } foo;
+} block_t;
+
+void fitasciia(block_t* block) {
+    block->foo.a &= 0x7F7F7F7F7F7F7F7FL;
+    for (int i=0;i<8;i++) {
+        if (block->str[i] < 0x20) {
+            block->str[i] = (char) (block->str[i] + 0x20);
+        }
+    }
+}
+
+int fitasciib(block_t* block) {
+    for (int i=0;i<8;i++) {
+        if (block->str[16+i] < 0x21) {
+            for (int j=i; j<8; j++) {
+                block->str[16+j] = '!';
+            }
+            return 1;
+        }
+        if ((unsigned char) (block->str[16+i]) > 0x7E) {
+            // little endian
+            for (int j=i; j>=0; j--) {
+                block->str[16+j] = '!';
+            }
+            if (i < 7) {
+                for (int j=i+1; j<8; j++) {
+                    block->str[16+j] = (char) (block->str[16+j] + 0x01);
+                    if (block->str[16+j] == (char) 0x7F) {
+                        block->str[16+j] = '!';
+                    } else {
+                        return 1;
+                    }
+                }
+            } else {
+                return 0;
+            }
+        }
+    }
+    return 1;
+}
+
+void thsmain(block_t* block) {
+    int best = default_best;
+    u08b_t res[128];
+    while (fitasciib(block)) {
+        for (size_t len = 24; len > 16; len--) {
+            int res2 = hash(block->str,len,res);
+            if(res2 < best) {
+                best = res2;
+                printf("%d %.*s\n",best, len, block->str);
+                fflush(stdout);
+            }
+            if (block->str[len-1] != '!') break;
+        }
+        block->foo.b += 1L;
+    }
+}
 
 int popcnt(u08b_t a){
     int ret = 0;
@@ -61,7 +126,7 @@ int hash(u08b_t *arg,size_t len,u08b_t *res){
 }
 
 
-
+/*
 void *thrmain(void *arg){
     unsigned long arg2 = (unsigned long)arg;
     printf("Ehlo from thread %lu\n",arg2);
@@ -88,18 +153,94 @@ void *thrmain(void *arg){
     free(res);
     return beststr;
 }
+*/
 
+void *thrmain(void *arg){
+    block_t block;
+    block.foo.a = 0LU;
+    block.foo.seed[0] = ' ';
+    block.foo.seed[1] = ' ';
+    block.foo.seed[2] = ' ';
+    block.foo.seed[3] = ' ';
+    block.foo.seed[4] = ' ';
+    block.foo.seed[5] = ' ';
+    block.foo.seed[6] = ' ';
+    block.foo.seed[7] = ' ';
+    block.foo.zero = '\0';
+
+    printf("Starting with max=%d, seed=%.8s\n", default_best, interstring);
+    snprintf(block.str+5, 4, "%03d", tid);
+    snprintf(block.foo.seed, 9, "%s", interstring);
+    if (strlen(interstring) < 8) {
+        block.foo.seed[strlen(interstring)] = ' ';
+    }
+    block.foo.a += time(NULL) & 0x7F7F7F7F7F;
+    block.foo.b = 0x2121212121212121LU;
+    fitasciia(&block);
+    fitasciib(&block);
+
+    printf("Starting value: %s\n", block.str);
+    fflush(stdout);
+    thsmain(&block);
+}
+
+/*
 int main(int argc, char **argv){
-    if(argc >= 2) {
+    block_t block;
+    block.foo.a = 0LU;
+    block.foo.seed[0] = ' ';
+    block.foo.seed[1] = ' ';
+    block.foo.seed[2] = ' ';
+    block.foo.seed[3] = ' ';
+    block.foo.seed[4] = ' ';
+    block.foo.seed[5] = ' ';
+    block.foo.seed[6] = ' ';
+    block.foo.seed[7] = ' ';
+    block.foo.zero = '\0';
+
+    if(argc==5){
         sscanf(argv[1],"%d",&default_best);
+        interstring = argv[2];
+        sscanf(argv[3], "%d", &NUM_THREADS);
+        sscanf(argv[4], "%d", &tid);
+        printf("Starting with max=%d, seed=%.8s\n", default_best, interstring);
+        snprintf(block.str+5, 4, "%03d", tid);
+        snprintf(block.foo.seed, 9, "%s", interstring);
+        if (strlen(interstring) < 8) {
+            block.foo.seed[strlen(interstring)] = ' ';
+        }
+        block.foo.a += time(NULL) & 0x7F7F7F7F7F;
+        block.foo.b = 0x2121212121212121LU;
+        fitasciia(&block);
+        fitasciib(&block);
+        printf("Starting value: %s\n", block.str);
+        //printf("%016lx\n%02x%02x%02x%02x%02x%02x%02x%02x\n%016lx\n", block.foo.a,
+        //       block.foo.seed[0], block.foo.seed[1], block.foo.seed[2],
+        //       block.foo.seed[3], block.foo.seed[4], block.foo.seed[5],
+        //       block.foo.seed[6], block.foo.seed[7], block.foo.b);
+        fflush(stdout);
+        thsmain(&block);
     }
 
+    //thrmain();
+    return 0;
+}
+*/
+
+// argv should be:
+// max_best seed_string num_threads thread_id
+int main(int argc, char **argv) {
+    if (argc >= 2) {
+        sscanf(argv[1],"%d",&default_best);
+    }
     if (argc >= 3) {
         interstring = argv[2];
-    } else {
-        /* TODO: better than this */
-        interstring = calloc(1000,sizeof(char));
-        sprintf(interstring,"%ul",time(NULL));
+    }
+    if (argc >= 4) {
+        sscanf(argv[3], "%d", &NUM_THREADS);
+    }
+    if (argc >= 5) {
+        sscanf(argv[4], "%d", &tid);
     }
 
     for(int i=0;i<NUM_THREADS-1;i++){
@@ -109,3 +250,4 @@ int main(int argc, char **argv){
     thrmain((void *)((ULONG_MAX/NUM_THREADS)*(NUM_THREADS-1)));
     return 0;
 }
+
