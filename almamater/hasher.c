@@ -78,23 +78,6 @@ int fitasciib(block_t* block) {
     return 1;
 }
 
-void thsmain(block_t* block) {
-    int best = default_best;
-    u08b_t res[128];
-    while (fitasciib(block)) {
-        for (size_t len = 24; len > 16; len--) {
-            int res2 = hash(block->str,len,res);
-            if(res2 < best) {
-                best = res2;
-                printf("%d %.*s\n",best, len, block->str);
-                fflush(stdout);
-            }
-            if (block->str[len-1] != '!') break;
-        }
-        block->foo.b += 1L;
-    }
-}
-
 int popcnt(u08b_t a){
     int ret = 0;
     while(a!=0){
@@ -125,6 +108,22 @@ int hash(u08b_t *arg,size_t len,u08b_t *res){
     return dif;
 }
 
+void thsmain(block_t* block) {
+    int best = default_best;
+    u08b_t res[128];
+    while (fitasciib(block)) {
+        for (size_t len = 24; len > 16; len--) {
+            int res2 = hash(block->str,len,res);
+            if(res2 < best) {
+                best = res2;
+                printf("%d %.*s\n",best, len, block->str);
+                fflush(stdout);
+            }
+            if (block->str[len-1] != '!') break;
+        }
+        block->foo.b += 1L;
+    }
+}
 
 /*
 void *thrmain(void *arg){
