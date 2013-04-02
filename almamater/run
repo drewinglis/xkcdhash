@@ -17,7 +17,7 @@ fi
 NTHREADS=${4:-${NTHREADS}}
 
 # thread id, or nothing
-thread_id=$
+thread_id=${5}
 
 dir=$(dirname "$0")
 ${dir}/src/hasher ${limit} ${inistr} ${NTHREADS} ${thread_id} | ${dir}/autosubmit "$domain"
