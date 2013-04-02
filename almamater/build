@@ -20,13 +20,6 @@ case `uname -m` in
         ln -s NIST/CD/Reference_Implementation src;;
 esac
 
-if which nproc >/dev/null 2>&1; then
-    NTHREADS=$(nproc)
-else
-    NTHREADS=16
-fi
-NTHREADS=${NUM_THREADS:-${NTHREADS}}
-
 cp hasher.c src/
 cd src
 gcc -O3 -march=native -std=c99 -pthread hasher.c skein.c skein_block.c -o hasher || \

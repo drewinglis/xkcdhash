@@ -240,6 +240,8 @@ int main(int argc, char **argv) {
     }
     if (argc >= 5) {
         sscanf(argv[4], "%d", &tid);
+    } else {
+        tid = rand();
     }
 
     for(int i=0;i<NUM_THREADS-1;i++){

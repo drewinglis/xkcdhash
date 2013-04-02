@@ -5,5 +5,19 @@ limit=${1:-440}
 # take domain name from second arg, default to "cmu.edu"
 domain=${2:-cmu.edu}
 
+# initial string, default to cmu
+inistr=${3:-cmu}
+
+# default number of threads to number of processors
+if which nproc >/dev/null 2>&1; then
+    NTHREADS=$(nproc)
+else
+    NTHREADS=16
+fi
+NTHREADS=${4:-${NTHREADS}}
+
+# thread id, or nothing
+thread_id=$
+
 dir=$(dirname "$0")
-${dir}/src/hasher ${limit} | ${dir}/autosubmit "$domain"
+${dir}/src/hasher ${limit} ${inistr} ${NTHREADS} ${thread_id} | ${dir}/autosubmit "$domain"
